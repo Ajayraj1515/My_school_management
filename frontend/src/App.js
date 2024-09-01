@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import Login from './components/login';
 import Dashboard from './components/dashboard';
 import StudentList from './components/student';
 import TeacherList from './components/teacher';
+import jwtDecode from 'jwt-decode';  // Assuming you have jwt-decode installed
 import './App.css';
+
+// PrivateRoute component to protect routes that require authentication
+const PrivateRoute = ({ component: Component, token, ...rest }) => (
+  <Route
+    {...rest}
+    render={(props) =>
+      token ? <Component {...props} /> : <Redirect to="/login" />
+    }
+  />
+);
 
 const App = () => {
   const [userType, setUserType] = useState('');
@@ -13,26 +24,28 @@ const App = () => {
   const handleLogin = (token) => {
     setToken(token);
     // Decode token to get userType or any other user information
-    // For example:
-    // const decodedToken = jwtDecode(token);
-    // setUserType(decodedToken.role);
+    const decodedToken = jwtDecode(token);
+    setUserType(decodedToken.role); // Assuming 'role' is part of the decoded token
   };
 
   return (
     <Router>
       <Switch>
         <Route path="/login">
-          <Login onLogin={handleLogin} setUserType={setUserType} />
+          {token ? <Redirect to="/" /> : <Login onLogin={handleLogin} />}
         </Route>
-        <Route path="/students">
-          {token ? <StudentList /> : <Login onLogin={handleLogin} setUserType={setUserType} />}
-        </Route>
-        <Route path="/teachers">
-          {token ? <TeacherList /> : <Login onLogin={handleLogin} setUserType={setUserType} />}
-        </Route>
-        <Route path="/">
-          {token ? <Dashboard userType={userType} /> : <Login onLogin={handleLogin} setUserType={setUserType} />}
-        </Route>
+        
+        <PrivateRoute path="/students" component={StudentList} token={token} />
+        <PrivateRoute path="/teachers" component={TeacherList} token={token} />
+        
+        <PrivateRoute 
+          path="/" 
+          component={() => <Dashboard userType={userType} />} 
+          token={token} 
+        />
+        
+        {/* Optional: Redirect unknown paths */}
+        <Redirect to={token ? "/" : "/login"} />
       </Switch>
     </Router>
   );
